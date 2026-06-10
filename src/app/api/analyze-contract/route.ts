@@ -3,6 +3,42 @@ import Groq from 'groq-sdk';
 
 export const dynamic = 'force-dynamic';
 
+// Lightweight, dependency-free regex-based PDF text extractor
+function extractTextFromPdfBuffer(buffer: Buffer): string {
+  try {
+    const content = buffer.toString('binary');
+    const textChunks: string[] = [];
+    
+    // Match standard Tj text chunks: (text) Tj
+    const tjRegex = /\((.*?)\)\s*Tj/g;
+    let match;
+    while ((match = tjRegex.exec(content)) !== null) {
+      textChunks.push(match[1]);
+    }
+    
+    // Match TJ array text chunks: [(t)-2(e)-3(x)-4(t)] TJ
+    const tjArrayRegex = /\[(.*?)\]\s*TJ/g;
+    while ((match = tjArrayRegex.exec(content)) !== null) {
+      const parts = match[1].match(/\((.*?)\)/g) || [];
+      const cleanParts = parts.map(p => p.slice(1, -1));
+      textChunks.push(cleanParts.join(''));
+    }
+
+    if (textChunks.length === 0) return "";
+    
+    return textChunks
+      .join(' ')
+      .replace(/\\([\d]{3})/g, (m, octal) => String.fromCharCode(parseInt(octal, 8)))
+      .replace(/\\r/g, '\n')
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
+      .replace(/\\/g, '');
+  } catch (e) {
+    console.error("PDF text extraction failed:", e);
+    return "";
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GROQ_API_KEY;
@@ -25,12 +61,12 @@ export async function POST(req: NextRequest) {
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+    const buffer = Buffer.from(arrayBuffer);
     const mimeType = file.type || 'application/pdf';
     
     const groq = new Groq({ apiKey });
 
-    const prompt = `You are an expert labor rights lawyer and immigration consultant for the UAE, Saudi Arabia, and the Middle East. 
+    const basePrompt = `You are an expert labor rights lawyer and immigration consultant for the UAE, Saudi Arabia, and the Middle East. 
 Analyze the uploaded document (which should be an employment contract, visa, or agent agreement). 
 Provide your response strictly as a JSON object with the following schema, and do not include any other text or markdown formatting outside the JSON:
 {
@@ -40,23 +76,40 @@ Provide your response strictly as a JSON object with the following schema, and d
   "riskyClauses": string[] (Array of strings describing any suspicious, unfair, or hidden clauses like passport confiscation, extreme recruitment fees, ambiguous working hours, or no clear termination policy. Empty array if none found.)
 }`;
 
-    const messages: Groq.Chat.ChatCompletionMessageParam[] = [
-      {
+    const messages: Groq.Chat.ChatCompletionMessageParam[] = [];
+
+    // Check if it is a PDF and has extractable text
+    const isPdf = mimeType.toLowerCase().includes('pdf') || file.name.toLowerCase().endsWith('.pdf');
+    let pdfText = "";
+    if (isPdf) {
+      pdfText = extractTextFromPdfBuffer(buffer);
+    }
+
+    if (isPdf && pdfText.length > 50) {
+      console.log(`Analyzing PDF via extracted text (${pdfText.length} characters)`);
+      messages.push({
+        role: "user",
+        content: `${basePrompt}\n\nDocument Text Content to Analyze:\n${pdfText}`
+      });
+    } else {
+      console.log(`Analyzing document as an image using multimodal vision`);
+      const base64Data = buffer.toString('base64');
+      messages.push({
         role: "user",
         content: [
-          { type: "text", text: prompt },
+          { type: "text", text: basePrompt },
           {
             type: "image_url",
             image_url: {
-              url: `data:${mimeType};base64,${base64Data}`
+              url: `data:${isPdf ? 'image/png' : mimeType};base64,${base64Data}`
             }
           }
         ] as unknown as Groq.Chat.ChatCompletionContentPart[]
-      }
-    ];
+      });
+    }
 
     const completion = await groq.chat.completions.create({
-      model: "llama-3.2-90b-vision-preview",
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
       messages,
       response_format: { type: "json_object" }
     });
@@ -83,4 +136,5 @@ Provide your response strictly as a JSON object with the following schema, and d
     });
   }
 }
+
 
