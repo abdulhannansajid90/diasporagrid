@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
-import { PDFParse } from 'pdf-parse';
+// @ts-expect-error: pdf-parse library lacks TypeScript typings
+import pdf from 'pdf-parse/lib/pdf-parse.js';
 
 export const dynamic = 'force-dynamic';
+
+
+
 
 // Robust PDF text extractor using pdf-parse library
 async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
   try {
-    const parser = new PDFParse({ data: buffer });
-    const result = await parser.getText();
-    await parser.destroy();
-    return result.text || "";
+    const data = await pdf(buffer);
+    return data.text || "";
   } catch (e) {
     console.error("PDF text extraction failed:", e);
     return "";
   }
 }
+
 
 export async function POST(req: NextRequest) {
   try {
