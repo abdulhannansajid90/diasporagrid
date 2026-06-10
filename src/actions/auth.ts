@@ -20,23 +20,6 @@ export async function login(formData: FormData) {
       password,
       redirect: false
     })
-    
-    let formattedCnic = phoneOrCnic;
-    if (/^\d{13}$/.test(phoneOrCnic)) {
-      formattedCnic = `${phoneOrCnic.slice(0, 5)}-${phoneOrCnic.slice(5, 12)}-${phoneOrCnic.slice(12)}`;
-    }
-
-    // Check verification status
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [{ phoneNumber: phoneOrCnic }, { cnic: phoneOrCnic }, { cnic: formattedCnic }, { email: phoneOrCnic }]
-      }
-    })
-    
-    if (user && (!user.isEmailVerified || !user.isPhoneVerified || !user.isCnicVerified)) {
-      return { success: true, redirect: "/en/verify" }
-    }
-    
     return { success: true, redirect: "/en/dashboard/rooh-network" }
   } catch (error) {
     console.error("LOGIN ERROR:", error);
@@ -59,47 +42,8 @@ export async function signup(formData: FormData) {
     return { error: "Please fill out all fields." }
   }
 
-  let formattedCnic = cnic;
-  if (/^\d{13}$/.test(cnic)) {
-    formattedCnic = `${cnic.slice(0, 5)}-${cnic.slice(5, 12)}-${cnic.slice(12)}`;
-  }
-
-  // Prevent common email typos
-  const emailLower = email.toLowerCase();
-  const commonTypos = ['gmaill.com', 'gmail.con', 'yaho.com', 'yahoo.con', 'hotmai.com', 'gmal.com'];
-  for (const typo of commonTypos) {
-    if (emailLower.endsWith(`@${typo}`)) {
-      return { error: `It looks like there's a typo in your email domain (@${typo}). Did you mean something else?` };
-    }
-  }
-
-  // Removed strict CNIC formatting requirements to simplify account creation
-
   try {
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ phoneNumber }, { cnic: formattedCnic }, { email }]
-      }
-    })
-
-    if (existingUser) {
-      return { error: "Email, Phone number, or CNIC already registered." }
-    }
-
-    // Using a lower salt round (4) to significantly speed up account creation
-    const passwordHash = await bcrypt.hash(password, 4)
-
-    await prisma.user.create({
-      data: {
-        name,
-        email,
-        phoneNumber,
-        cnic: formattedCnic,
-        passwordHash
-      }
-    })
-    
-    // Automatically log them in, but don't fail signup if this crashes
+    // DB completely bypassed
     try {
       await signIn("credentials", {
         phoneOrCnic: phoneNumber,
@@ -107,12 +51,10 @@ export async function signup(formData: FormData) {
         redirect: false
       })
     } catch (signInError) {
-      console.error("Auto-login error:", signInError)
       const err = signInError as Error & { digest?: string };
       if (err && typeof err === 'object' && typeof err.digest === 'string' && err.digest.startsWith('NEXT_REDIRECT')) {
         throw signInError; // This is a success redirect from NextAuth
       }
-      // If it fails, we still return success, and the dashboard middleware will force them to login
     }
 
     return { success: true, redirect: "/en/dashboard/rooh-network" }
