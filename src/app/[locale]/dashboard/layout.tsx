@@ -29,7 +29,7 @@ export default async function DashboardLayout({
       <Sidebar />
       <div className="flex-1 flex flex-col relative overflow-hidden">
         <Topbar user={session.user} />
-        <main className="flex-1 overflow-y-auto p-8 z-10">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 z-10">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
