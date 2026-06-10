@@ -1,0 +1,41 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(cuid())
+  name             String
+  email            String?  @unique
+  phoneNumber      String   @unique
+  cnic             String   @unique
+  passwordHash     String
+  isEmailVerified  Boolean  @default(false)
+  isPhoneVerified  Boolean  @default(false)
+  isCnicVerified   Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  otpCode          String?
+  otpExpiresAt     DateTime?
+  passportSOSReports PassportSOSReport[]
+}
+
+model PassportSOSReport {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  location  String?
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
