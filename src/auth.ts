@@ -46,7 +46,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: {
             OR: [
               { phoneNumber: credentials.phoneOrCnic as string },
-              { cnic: credentials.phoneOrCnic as string }
+              { cnic: credentials.phoneOrCnic as string },
+              { email: credentials.phoneOrCnic as string }
             ]
           }
         })

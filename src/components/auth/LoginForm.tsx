@@ -52,10 +52,10 @@ export default function LoginForm() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Phone Number or CNIC</label>
+          <label className="text-sm font-medium">Email, Phone or CNIC</label>
           <div className="relative">
             <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input name="phoneOrCnic" value={phoneOrCnic} onChange={(e) => setPhoneOrCnic(e.target.value)} className="pl-10 bg-black/20" placeholder="+9715... or 12345..." required />
+            <Input name="phoneOrCnic" value={phoneOrCnic} onChange={(e) => setPhoneOrCnic(e.target.value)} className="pl-10 bg-black/20" placeholder="user@example.com, +9715... or 12345..." required />
           </div>
         </div>
 
@@ -83,10 +83,19 @@ export default function LoginForm() {
         </Button>
       </div>
 
-      <div className="mt-6 text-center text-sm">
-        <span className="text-muted-foreground">Don&apos;t have an account? </span>
-        <Link href="/en/signup" className="text-primary hover:underline font-medium">
-          Sign up here
+      <div className="mt-6">
+        <div className="relative mb-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-muted" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">New to Diaspora-Grid?</span>
+          </div>
+        </div>
+        <Link href="/en/signup" className="w-full flex">
+          <Button type="button" variant="outline" className="w-full">
+            Create an Account
+          </Button>
         </Link>
       </div>
     </div>

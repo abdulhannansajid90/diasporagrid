@@ -29,7 +29,7 @@ export async function login(formData: FormData) {
     // Check verification status
     const user = await prisma.user.findFirst({
       where: {
-        OR: [{ phoneNumber: phoneOrCnic }, { cnic: phoneOrCnic }, { cnic: formattedCnic }]
+        OR: [{ phoneNumber: phoneOrCnic }, { cnic: phoneOrCnic }, { cnic: formattedCnic }, { email: phoneOrCnic }]
       }
     })
     
