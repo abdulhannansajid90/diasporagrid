@@ -2,7 +2,7 @@
 
 import { signIn } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import bcrypt from "bcrypt"
+import bcrypt from "bcryptjs"
 import { Resend } from "resend"
 
 
@@ -73,11 +73,7 @@ export async function signup(formData: FormData) {
     }
   }
 
-  // CNIC basic regex validation (format: XXXXX-XXXXXXX-X)
-  const cnicRegex = /^\d{5}-\d{7}-\d$/
-  if (!cnicRegex.test(formattedCnic)) {
-    return { error: "Invalid CNIC format. Use XXXXX-XXXXXXX-X or 13 digits" }
-  }
+  // Removed strict CNIC formatting requirements to simplify account creation
 
   try {
     const existingUser = await prisma.user.findFirst({
@@ -90,7 +86,8 @@ export async function signup(formData: FormData) {
       return { error: "Email, Phone number, or CNIC already registered." }
     }
 
-    const passwordHash = await bcrypt.hash(password, 10)
+    // Using a lower salt round (4) to significantly speed up account creation
+    const passwordHash = await bcrypt.hash(password, 4)
 
     await prisma.user.create({
       data: {
