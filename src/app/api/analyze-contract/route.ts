@@ -1,38 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
+import { PDFParse } from 'pdf-parse';
 
 export const dynamic = 'force-dynamic';
 
-// Lightweight, dependency-free regex-based PDF text extractor
-function extractTextFromPdfBuffer(buffer: Buffer): string {
+// Robust PDF text extractor using pdf-parse library
+async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
   try {
-    const content = buffer.toString('binary');
-    const textChunks: string[] = [];
-    
-    // Match standard Tj text chunks: (text) Tj
-    const tjRegex = /\((.*?)\)\s*Tj/g;
-    let match;
-    while ((match = tjRegex.exec(content)) !== null) {
-      textChunks.push(match[1]);
-    }
-    
-    // Match TJ array text chunks: [(t)-2(e)-3(x)-4(t)] TJ
-    const tjArrayRegex = /\[(.*?)\]\s*TJ/g;
-    while ((match = tjArrayRegex.exec(content)) !== null) {
-      const parts = match[1].match(/\((.*?)\)/g) || [];
-      const cleanParts = parts.map(p => p.slice(1, -1));
-      textChunks.push(cleanParts.join(''));
-    }
-
-    if (textChunks.length === 0) return "";
-    
-    return textChunks
-      .join(' ')
-      .replace(/\\([\d]{3})/g, (m, octal) => String.fromCharCode(parseInt(octal, 8)))
-      .replace(/\\r/g, '\n')
-      .replace(/\\n/g, '\n')
-      .replace(/\\t/g, '\t')
-      .replace(/\\/g, '');
+    const parser = new PDFParse({ data: buffer });
+    const result = await parser.getText();
+    await parser.destroy();
+    return result.text || "";
   } catch (e) {
     console.error("PDF text extraction failed:", e);
     return "";
@@ -82,10 +60,10 @@ Provide your response strictly as a JSON object with the following schema, and d
     const isPdf = mimeType.toLowerCase().includes('pdf') || file.name.toLowerCase().endsWith('.pdf');
     let pdfText = "";
     if (isPdf) {
-      pdfText = extractTextFromPdfBuffer(buffer);
+      pdfText = await extractTextFromPdfBuffer(buffer);
     }
 
-    if (isPdf && pdfText.length > 50) {
+    if (isPdf && pdfText.trim().length > 50) {
       console.log(`Analyzing PDF via extracted text (${pdfText.length} characters)`);
       messages.push({
         role: "user",
@@ -107,6 +85,7 @@ Provide your response strictly as a JSON object with the following schema, and d
         ] as unknown as Groq.Chat.ChatCompletionContentPart[]
       });
     }
+
 
     const completion = await groq.chat.completions.create({
       model: "meta-llama/llama-4-scout-17b-16e-instruct",
