@@ -38,7 +38,11 @@ export async function login(formData: FormData) {
     }
     
     return { success: true, redirect: "/en/dashboard/rooh-network" }
-  } catch {
+  } catch (error) {
+    console.error("LOGIN ERROR:", error);
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error;
+    }
     return { error: "Invalid credentials." }
   }
 }
@@ -105,7 +109,11 @@ export async function signup(formData: FormData) {
     })
 
     return { success: true, redirect: "/en/verify" }
-  } catch {
+  } catch (error) {
+    console.error("SIGNUP ERROR:", error);
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error;
+    }
     return { error: "Failed to create account." }
   }
 }
