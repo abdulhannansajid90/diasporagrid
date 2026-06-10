@@ -2,7 +2,6 @@
 
 import { signIn } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import bcrypt from "bcryptjs"
 import { Resend } from "resend"
 
 
