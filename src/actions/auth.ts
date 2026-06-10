@@ -2,7 +2,7 @@
 
 import { signIn } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import bcrypt from "bcryptjs"
+import bcrypt from "bcrypt"
 import { Resend } from "resend"
 
 
@@ -40,7 +40,8 @@ export async function login(formData: FormData) {
     return { success: true, redirect: "/en/dashboard/rooh-network" }
   } catch (error) {
     console.error("LOGIN ERROR:", error);
-    if (error && typeof error === 'object' && 'digest' in error && typeof (error as any).digest === 'string' && (error as any).digest.startsWith('NEXT_REDIRECT')) {
+    const err = error as Error & { digest?: string };
+    if (err && typeof err === 'object' && typeof err.digest === 'string' && err.digest.startsWith('NEXT_REDIRECT')) {
       throw error;
     }
     return { error: "Invalid credentials." }
@@ -111,7 +112,8 @@ export async function signup(formData: FormData) {
     return { success: true, redirect: "/en/verify" }
   } catch (error) {
     console.error("SIGNUP ERROR:", error);
-    if (error && typeof error === 'object' && 'digest' in error && typeof (error as any).digest === 'string' && (error as any).digest.startsWith('NEXT_REDIRECT')) {
+    const err = error as Error & { digest?: string };
+    if (err && typeof err === 'object' && typeof err.digest === 'string' && err.digest.startsWith('NEXT_REDIRECT')) {
       throw error;
     }
     return { error: "Failed to create account." }
