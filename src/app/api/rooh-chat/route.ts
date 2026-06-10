@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     ];
 
     const completion = await groq.chat.completions.create({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       messages: formattedMessages as any,
       model: "llama-3.3-70b-versatile",
     });

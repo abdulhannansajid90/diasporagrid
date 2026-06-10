@@ -43,6 +43,7 @@ Provide your response strictly as a JSON object with the following schema, and d
       messages: [
         {
           role: "user",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           content: [
             { type: "text", text: prompt },
             {
