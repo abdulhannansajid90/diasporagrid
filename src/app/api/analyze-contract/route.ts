@@ -1,18 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
-// @ts-expect-error: pdf-parse library lacks TypeScript typings
-import pdf from 'pdf-parse/lib/pdf-parse.js';
 
 export const dynamic = 'force-dynamic';
 
-
-
-
-// Robust PDF text extractor using pdf-parse library
-async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
+// Pure JavaScript PDF text extractor that bypasses pdf.js format errors
+function extractTextFromPdfBuffer(buffer: Buffer): string {
   try {
-    const data = await pdf(buffer);
-    return data.text || "";
+    const content = buffer.toString('binary');
+    const textChunks: string[] = [];
+    
+    // 1. Match standard Tj text chunks: (text) Tj
+    const tjRegex = /\((.*?)\)\s*Tj/g;
+    let match;
+    while ((match = tjRegex.exec(content)) !== null) {
+      const clean = match[1]
+        .replace(/\\([\d]{3})/g, (m, octal) => String.fromCharCode(parseInt(octal, 8)))
+        .replace(/\\r/g, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\\t/g, '\t')
+        .replace(/\\/g, '');
+      textChunks.push(clean);
+    }
+    
+    // 2. Match TJ array text chunks: [(t)-2(e)-3(x)-4(t)] TJ
+    const tjArrayRegex = /\[(.*?)\]\s*TJ/g;
+    while ((match = tjArrayRegex.exec(content)) !== null) {
+      const parts = match[1].match(/\((.*?)\)/g) || [];
+      const cleanParts = parts.map(p => {
+        return p.slice(1, -1)
+          .replace(/\\([\d]{3})/g, (m, octal) => String.fromCharCode(parseInt(octal, 8)))
+          .replace(/\\/g, '');
+      });
+      textChunks.push(cleanParts.join(''));
+    }
+
+    // Filter out binary non-printable characters
+    const filteredText = textChunks
+      .join(' ')
+      .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F-\u009F]/g, '');
+
+    return filteredText;
   } catch (e) {
     console.error("PDF text extraction failed:", e);
     return "";
@@ -63,8 +90,9 @@ Provide your response strictly as a JSON object with the following schema, and d
     const isPdf = mimeType.toLowerCase().includes('pdf') || file.name.toLowerCase().endsWith('.pdf');
     let pdfText = "";
     if (isPdf) {
-      pdfText = await extractTextFromPdfBuffer(buffer);
+      pdfText = extractTextFromPdfBuffer(buffer);
     }
+
 
     if (isPdf && pdfText.trim().length > 50) {
       console.log(`Analyzing PDF via extracted text (${pdfText.length} characters)`);
