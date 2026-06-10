@@ -40,11 +40,11 @@ export async function login(formData: FormData) {
     return { success: true, redirect: "/en/dashboard/rooh-network" }
   } catch (error) {
     console.error("LOGIN ERROR:", error);
-    const err = error as Error & { digest?: string };
+    const err = error as Error & { digest?: string, message?: string };
     if (err && typeof err === 'object' && typeof err.digest === 'string' && err.digest.startsWith('NEXT_REDIRECT')) {
       throw error;
     }
-    return { error: "Invalid credentials." }
+    return { error: err?.message || "Invalid credentials." }
   }
 }
 
@@ -99,21 +99,30 @@ export async function signup(formData: FormData) {
       }
     })
     
-    // Automatically log them in
-    await signIn("credentials", {
-      phoneOrCnic: phoneNumber,
-      password,
-      redirect: false
-    })
+    // Automatically log them in, but don't fail signup if this crashes
+    try {
+      await signIn("credentials", {
+        phoneOrCnic: phoneNumber,
+        password,
+        redirect: false
+      })
+    } catch (signInError) {
+      console.error("Auto-login error:", signInError)
+      const err = signInError as Error & { digest?: string };
+      if (err && typeof err === 'object' && typeof err.digest === 'string' && err.digest.startsWith('NEXT_REDIRECT')) {
+        throw signInError; // This is a success redirect from NextAuth
+      }
+      // If it fails, we still return success, and the dashboard middleware will force them to login
+    }
 
-    return { success: true, redirect: "/en/verify" }
+    return { success: true, redirect: "/en/dashboard/rooh-network" }
   } catch (error) {
     console.error("SIGNUP ERROR:", error);
-    const err = error as Error & { digest?: string };
+    const err = error as Error & { digest?: string, message?: string };
     if (err && typeof err === 'object' && typeof err.digest === 'string' && err.digest.startsWith('NEXT_REDIRECT')) {
       throw error;
     }
-    return { error: "Failed to create account." }
+    return { error: err?.message || "Failed to create account." }
   }
 }
 
