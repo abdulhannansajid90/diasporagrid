@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     console.log("Using API Key:", apiKey ? apiKey.substring(0, 10) + "..." : "undefined");
     
     if (!apiKey) {
@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const base64Data = Buffer.from(arrayBuffer).toString('base64');
+    const mimeType = file.type || 'application/pdf';
     
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
+    const groq = new Groq({ apiKey });
 
     const prompt = `You are an expert labor rights lawyer and immigration consultant for the UAE, Saudi Arabia, and the Middle East. 
 Analyze the uploaded document (which should be an employment contract, visa, or agent agreement). 
@@ -38,17 +38,26 @@ Provide your response strictly as a JSON object with the following schema, and d
   "riskyClauses": string[] (Array of strings describing any suspicious, unfair, or hidden clauses like passport confiscation, extreme recruitment fees, ambiguous working hours, or no clear termination policy. Empty array if none found.)
 }`;
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType: file.type || 'application/pdf',
-        },
-      },
-    ]);
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.2-90b-vision-preview",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${base64Data}`
+              }
+            }
+          ] as any
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
 
-    const responseText = result.response.text();
+    const responseText = completion.choices[0]?.message?.content || "{}";
     const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const analysis = JSON.parse(cleanedText);
 
