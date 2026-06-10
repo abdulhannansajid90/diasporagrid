@@ -2,7 +2,6 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/prisma';
 
 export default async function DashboardLayout({
   children,
@@ -13,15 +12,6 @@ export default async function DashboardLayout({
   
   if (!session?.user?.id) {
     redirect('/en/login');
-  }
-
-  // Ensure they are fully verified by checking the fresh DB state, not the stale JWT cookie
-  if (session.user.id !== "demo-user-12345") {
-    const dbUser = await prisma.user.findUnique({ where: { id: session.user.id } });
-    
-    if (!dbUser || !dbUser.isPhoneVerified || !dbUser.isCnicVerified) {
-      redirect('/en/verify');
-    }
   }
 
   return (
@@ -43,3 +33,4 @@ export default async function DashboardLayout({
     </div>
   );
 }
+

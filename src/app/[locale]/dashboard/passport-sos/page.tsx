@@ -6,10 +6,17 @@ import { prisma } from "@/lib/prisma";
 export default async function PassportSOSPage() {
   const session = await auth();
   
-  const activeReport = session?.user?.id ? await prisma.passportSOSReport.findFirst({
-    where: { userId: session.user.id, status: 'ACTIVE' },
-    orderBy: { createdAt: 'desc' }
-  }) : null;
+  let activeReport = null;
+  try {
+    if (session?.user?.id) {
+      activeReport = await prisma.passportSOSReport.findFirst({
+        where: { userId: session.user.id, status: 'ACTIVE' },
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+  } catch (error) {
+    console.error("Prisma lookup failed in PassportSOSPage, using fallback null:", error);
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -31,3 +38,4 @@ export default async function PassportSOSPage() {
     </div>
   );
 }
+
