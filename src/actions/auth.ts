@@ -122,7 +122,7 @@ export async function signup(formData: FormData) {
     if (err && typeof err === 'object' && typeof err.digest === 'string' && err.digest.startsWith('NEXT_REDIRECT')) {
       throw error;
     }
-    return { error: err?.message || "Failed to create account." }
+    return { error: `Server Error: ${error instanceof Error ? error.message : String(error)}` }
   }
 }
 
