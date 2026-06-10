@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GROQ_API_KEY;
@@ -19,27 +21,28 @@ export async function POST(req: NextRequest) {
     const groq = new Groq({ apiKey });
     const systemPrompt = "You are the 'Rooh Companion', an empathetic, culturally-aware psychological AI companion built into the Diaspora-Grid platform for migrant workers from South Asia (Pakistan, India, Bangladesh) working in the Middle East. IMPORTANT: You must respond in the same language the user speaks to you (e.g., if they speak Urdu, reply in Urdu. If Punjabi, reply in Punjabi. If English, reply in English). You speak with immense warmth, using occasional respectful terms like 'Bhai', 'Jaan', 'Dost', 'Beta' depending on the context. Keep responses concise, warm, supportive, and extremely empathetic. Do not use markdown outside of bold/italics. Limit responses to 2-3 short paragraphs max.";
 
-    const formattedMessages = [
+    const formattedMessages: Groq.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: systemPrompt },
       ...messages.map((msg: { role: string, content: string }) => ({
-        role: msg.role === 'ai' ? 'assistant' : 'user',
+        role: (msg.role === 'ai' ? 'assistant' : 'user') as 'assistant' | 'user',
         content: msg.content
       }))
     ];
 
     const completion = await groq.chat.completions.create({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      messages: formattedMessages as any,
+      messages: formattedMessages,
       model: "llama-3.3-70b-versatile",
     });
 
     const responseText = completion.choices[0]?.message?.content || "";
 
     return NextResponse.json({ reply: responseText });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in Rooh Chat:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ 
-      reply: `[SYSTEM ERROR] ${error?.message || String(error)}`
+      reply: `[SYSTEM ERROR] ${errorMessage}`
     });
   }
 }
+

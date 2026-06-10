@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GROQ_API_KEY;
@@ -38,23 +40,24 @@ Provide your response strictly as a JSON object with the following schema, and d
   "riskyClauses": string[] (Array of strings describing any suspicious, unfair, or hidden clauses like passport confiscation, extreme recruitment fees, ambiguous working hours, or no clear termination policy. Empty array if none found.)
 }`;
 
+    const messages: Groq.Chat.ChatCompletionMessageParam[] = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${base64Data}`
+            }
+          }
+        ] as unknown as Groq.Chat.ChatCompletionContentPart[]
+      }
+    ];
+
     const completion = await groq.chat.completions.create({
       model: "llama-3.2-90b-vision-preview",
-      messages: [
-        {
-          role: "user",
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          content: [
-            { type: "text", text: prompt },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${base64Data}`
-              }
-            }
-          ] as any
-        }
-      ],
+      messages,
       response_format: { type: "json_object" }
     });
 
@@ -80,3 +83,4 @@ Provide your response strictly as a JSON object with the following schema, and d
     });
   }
 }
+
