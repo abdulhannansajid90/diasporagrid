@@ -72,6 +72,11 @@ Provide your response strictly as a JSON object with the following schema, and d
         role: "user",
         content: `${basePrompt}\n\nDocument Text Content to Analyze:\n${pdfText}`
       });
+    } else if (isPdf) {
+      console.log(`Scanned PDF uploaded. Returning clean error message.`);
+      return NextResponse.json({
+        error: "The uploaded PDF appears to be a scanned image and contains no extractable text. Please upload the contract directly as an image (JPG/PNG), or upload a text-based PDF."
+      }, { status: 400 });
     } else {
       console.log(`Analyzing document as an image using multimodal vision`);
       const base64Data = buffer.toString('base64');
@@ -82,12 +87,13 @@ Provide your response strictly as a JSON object with the following schema, and d
           {
             type: "image_url",
             image_url: {
-              url: `data:${isPdf ? 'image/png' : mimeType};base64,${base64Data}`
+              url: `data:${mimeType};base64,${base64Data}`
             }
           }
         ] as unknown as Groq.Chat.ChatCompletionContentPart[]
       });
     }
+
 
 
     const completion = await groq.chat.completions.create({
@@ -97,26 +103,20 @@ Provide your response strictly as a JSON object with the following schema, and d
     });
 
     const responseText = completion.choices[0]?.message?.content || "{}";
+    console.log("Groq Response Content:", responseText);
     const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const analysis = JSON.parse(cleanedText);
 
     return NextResponse.json(analysis);
+
   } catch (error: unknown) {
     console.error('Error analyzing document:', error);
-    
-    // Fallback response when API fails (e.g., out of credits/quota)
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json({
-      trustScore: 65,
-      agentVerified: false,
-      salaryMeetsMinimum: true,
-      riskyClauses: [
-        "Passport Confiscation Risk: The contract implies the employer or agent may retain your original passport. This is strictly illegal under regional labor laws.",
-        "Ambiguous Probation Period: The termination conditions during the probationary period are not clearly defined.",
-        "Hidden Recruitment Fees: There is no explicit clause stating that the employer bears all visa and recruitment costs, which is a common red flag.",
-        "Note: Due to API quota limits, this is an automated offline risk assessment based on common regional contract patterns."
-      ]
-    });
+      error: `Analysis failed: ${errorMessage}`
+    }, { status: 500 });
   }
 }
+
 
 
