@@ -36,10 +36,10 @@ export async function POST(req: NextRequest) {
     const responseText = completion.choices[0]?.message?.content || "";
 
     return NextResponse.json({ reply: responseText });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in Rooh Chat:', error);
     return NextResponse.json({ 
-      reply: "I hear you, and your feelings are completely valid. Being far from home is an immense sacrifice. Remember that your strength is inspiring, but you are allowed to rest. Have you spoken to your family recently? (Offline Mode Active)" 
+      reply: `[SYSTEM ERROR] ${error?.message || String(error)}`
     });
   }
 }
